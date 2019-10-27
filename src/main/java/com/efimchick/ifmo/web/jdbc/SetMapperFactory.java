@@ -55,9 +55,9 @@ public class SetMapperFactory {
             }
             rs.absolute(now);
         }
-        Employee emp = new Employee(BigInteger.valueOf(thisId), fullName, pos, date, salary, manager);
-        return emp;
+        return new Employee(BigInteger.valueOf(thisId), fullName, pos, date, salary, manager);
         }
+
         catch (SQLException e) {
             System.out.println(e.getMessage());
             return null;
