@@ -17,19 +17,16 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class DaoFactory {
-    protected List<Department> alldepartments = getDepartment();
-    protected List<Employee> allemployees = getEmployees(false);
-    protected List<Employee> allemployeeswithchain = getEmployees(true);
 
-    private List<Employee> getEmployees(boolean chain) {
+    public List<Employee> getEmployees(int chain, String request) {
         try {
             final ConnectionSource connectionSource = ConnectionSource.instance();
             final Connection conn = connectionSource.createConnection();
             final Statement statement = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            final ResultSet rs = statement.executeQuery("SELECT * FROM EMPLOYEE");
+            final ResultSet rs = statement.executeQuery(request);
             List<Employee> allEmployees = new LinkedList<>();
             while (rs.next()) {
-                Employee emp = employeeMapRow(rs, chain, true);
+                Employee emp = employeeMapRow(rs, chain);
                 allEmployees.add(emp);
             }
             return allEmployees;
@@ -38,25 +35,25 @@ public class DaoFactory {
         }
     }
 
-    private List<Department> getDepartment() {
+    private Department getDepartment(int id) {
         try {
             final ConnectionSource connectionSource = ConnectionSource.instance();
             final Connection conn = connectionSource.createConnection();
             final Statement statement = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            final ResultSet rs = statement.executeQuery("SELECT * FROM DEPARTMENT");
-            List<Department> allDepartments = new LinkedList<>();
-            while (rs.next()) {
-                Department dep = depatmentMapRow(rs);
-                allDepartments.add(dep);
-            }
-            return allDepartments;
+            final ResultSet rs = statement.executeQuery("SELECT * FROM DEPARTMENT WHERE ID = " + id);
+            rs.next();
+            return departmentMapRow(rs);
         } catch (SQLException e) {
             return  null;
         }
     }
 
+    private Employee getManager (int id, int chain) {
+        return getEmployees((chain == 3) ? 3 : 2, "SELECT * FROM EMPLOYEE WHERE ID = " + id).get(0);
+    }
 
-    private Employee employeeMapRow(ResultSet rs, boolean chain, boolean first) {
+
+    private Employee employeeMapRow(ResultSet rs, int chain) {
         try {
             int thisId = rs.getInt("id");
             String fn = rs.getString("firstname");
@@ -67,22 +64,15 @@ public class DaoFactory {
             LocalDate date = LocalDate.parse(String.valueOf(rs.getDate("hiredate")));
             BigDecimal salary = rs.getBigDecimal("salary");
             Employee manager = null;
-            if (first || chain) {
+            if (chain != 2) {
                 if (rs.getString("manager") != null) {
                     int managerId = Integer.valueOf(rs.getString("manager"));
-                    int now = rs.getRow();
-                    rs.beforeFirst();
-                    while (rs.next() && manager == null) {
-                        if (rs.getInt("ID") == managerId) {
-                            manager = employeeMapRow(rs, chain, false);
-                        }
-                    }
-                    rs.absolute(now);
+                    manager = getManager(managerId, chain);
                 }
             }
             Department department = null;
             if (rs.getString("department") != null) {
-                department = getDepartmentById(BigInteger.valueOf(rs.getInt("department")));
+                department = getDepartment(rs.getInt("department"));
             }
 
             return new Employee(BigInteger.valueOf(thisId),
@@ -101,23 +91,13 @@ public class DaoFactory {
 
     }
 
-    private Department getDepartmentById (BigInteger Id){
-        Department dep;
-        for (int i = 0; i < alldepartments.size(); i++) {
-            if (alldepartments.get(i).getId().equals(Id)) {
-                dep = alldepartments.get(i);
-                return dep;
-            }
-        }
-        return null;
-    }
 
-    private Department depatmentMapRow(ResultSet rs) {
+    private Department departmentMapRow(ResultSet rs) {
         try {
             BigInteger id = BigInteger.valueOf(rs.getInt("id"));
             String name = rs.getString("name");
             String location = rs.getString("location");
-            return new Department(id,name,location);
+            return new Department(id, name,location);
 
         } catch (SQLException e) {
             return null;
