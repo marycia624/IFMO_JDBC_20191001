@@ -196,6 +196,7 @@ public class DaoFactory {
             @Override
             public Department save(Department department) {
                 try {
+                    delete(department);
                     String request = "INSERT INTO DEPARTMENT " +
                             "VALUES (" +
                             department.getId() + ", '" +
