@@ -9,6 +9,7 @@ import com.efimchick.ifmo.web.jdbc.domain.Position;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -17,12 +18,10 @@ import java.util.List;
 import java.util.Optional;
 
 public class DaoFactory {
-    private List<Employee> allemployees = getEmployees();
-    private List<Department> alldepartments = getDepartment();
 
-    private List<Employee> getEmployees() {
+    private List<Employee> getEmployees(String request) {
         try {
-            ResultSet rs = createConnection().createStatement().executeQuery("SELECT * FROM EMPLOYEE");
+            ResultSet rs = createConnection().createStatement().executeQuery(request);
             List<Employee> allEmployees = new LinkedList<>();
             while (rs.next()) {
                 Employee emp = employeeMapRow(rs);
@@ -34,9 +33,9 @@ public class DaoFactory {
         }
     }
 
-    private List<Department> getDepartment() {
+    private List<Department> getDepartment(String request) {
         try {
-            ResultSet rs = createConnection().createStatement().executeQuery("SELECT * FROM DEPARTMENT");
+            ResultSet rs = createConnection().createStatement().executeQuery(request);
             List<Department> allDepartments = new LinkedList<>();
             while (rs.next()) {
                 Department dep = depatmentMapRow(rs);
@@ -118,52 +117,60 @@ public class DaoFactory {
         EmployeeDao empDao = new EmployeeDao() {
             @Override
             public List<Employee> getByDepartment(Department department) {
-                List<Employee> result = new LinkedList<>();
-                for(int i = 0; i < allemployees.size(); i++) {
-                    if (allemployees.get(i).getDepartmentId().equals(department.getId())) {
-                        result.add(allemployees.get(i));
-                    }
-                }
-                return result;
+                return getEmployees("SELECT * FROM EMPLOYEE WHERE DEPARTMENT = " + department.getId());
             }
 
             @Override
             public List<Employee> getByManager(Employee employee) {
-                List<Employee> result = new LinkedList<>();
-                for(int i = 0; i < allemployees.size(); i++) {
-                    if (allemployees.get(i).getManagerId().equals(employee.getId())) {
-                        result.add(allemployees.get(i));
-                    }
-                }
-                return result;
+                return getEmployees("SELECT * FROM EMPLOYEE WHERE MANAGER = " + employee.getId());
             }
 
             @Override
             public Optional<Employee> getById(BigInteger Id) {
-                Optional<Employee> result = Optional.empty();
-                for (int i = 0; i < allemployees.size(); i++) {
-                    if (allemployees.get(i).getId().equals(Id)) {
-                        result = Optional.of(allemployees.get(i));
-                        break;
-                    }
+                try {
+                    return Optional.of(getEmployees("SELECT * FROM EMPLOYEE WHERE ID = " + Id).get(0));
+                } catch (Exception e) {
+                    return Optional.empty();
                 }
-                return result;
             }
 
             @Override
             public List<Employee> getAll() {
-                return allemployees;
+                return getEmployees("SELECT * FROM EMPLOYEE");
             }
 
             @Override
             public Employee save(Employee employee) {
-                allemployees.add(employee);
+                try {
+                    String request = "INSERT INTO EMPLOYEE " +
+                            "VALUES (" +
+                            employee.getId() + ", '" +
+                            employee.getFullName().getFirstName() + "', '" +
+                            employee.getFullName().getLastName() + "', '" +
+                            employee.getFullName().getMiddleName() + "', '" +
+                            employee.getPosition() + "', " +
+                            employee.getManagerId() + ", '" +
+                            Date.valueOf(employee.getHired()) + "', " +
+                            employee.getSalary() + ", " +
+                            employee.getDepartmentId() + ")";
+                    createConnection()
+                            .createStatement()
+                            .executeUpdate(request);
+                } catch (SQLException e) {
+                    System.out.println(e);
+                }
                 return employee;
             }
 
             @Override
             public void delete(Employee employee) {
-                allemployees.remove(employee);
+                String request = "DELETE FROM EMPLOYEE WHERE ID = " + employee.getId();
+                try {
+                    createConnection().createStatement()
+                            .executeUpdate(request);
+                } catch (SQLException e) {
+                    System.out.println(e);
+                }
             }
         };
         return empDao;
@@ -173,34 +180,45 @@ public class DaoFactory {
         DepartmentDao depDao = new DepartmentDao() {
             @Override
             public Optional<Department> getById(BigInteger Id) {
-                Optional<Department> res = Optional.empty();
-                for (int i = 0; i < alldepartments.size(); i++) {
-                    if (alldepartments.get(i).getId().equals(Id)) {
-                        res = Optional.of(alldepartments.get(i));
-                    }
+                try {
+                    return Optional.of(getDepartment("SELECT * FROM DEPARTMENT WHERE ID = " + Id).get(0));
+                } catch (Exception e) {
+                    return Optional.empty();
                 }
-                return res;
+
             }
 
             @Override
             public List<Department> getAll() {
-                return alldepartments;
+                return getDepartment("SELECT * FROM DEPARTMENT");
             }
 
             @Override
             public Department save(Department department) {
-                for (int i = 0; i < alldepartments.size(); i++) {
-                    if (alldepartments.get(i).getId().equals(department.getId())) {
-                        alldepartments.remove(alldepartments.get(i));
-                    }
+                try {
+                    String request = "INSERT INTO DEPARTMENT " +
+                            "VALUES (" +
+                            department.getId() + ", '" +
+                            department.getName() + "', '" +
+                           department.getLocation() + "')";
+                    createConnection()
+                            .createStatement()
+                            .executeUpdate(request);
+                } catch (SQLException e) {
+                    System.out.println(e);
                 }
-                alldepartments.add(department);
                 return department;
             }
 
             @Override
             public void delete(Department department) {
-                alldepartments.remove(department);
+                String request = "DELETE FROM DEPARTMENT WHERE ID = " + department.getId();
+                try {
+                    createConnection().createStatement()
+                            .executeUpdate(request);
+                } catch (SQLException e) {
+                    System.out.println(e);
+                }
             }
         };
         return depDao;
